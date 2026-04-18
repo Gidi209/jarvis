@@ -1,25 +1,24 @@
-const express = require('express');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-const app = express();
-app.use(express.json());
+module.exports = async (req, res) => {
+  // A Alexa sempre envia um POST. Se alguém tentar acessar via navegador (GET), damos um erro amigável.
+  if (req.method !== 'POST') {
+    return res.status(200).send("Servidor do Jarvis está online! (Use a Alexa para interagir)");
+  }
 
-// 1. Configure sua API Key (Use variáveis de ambiente!)
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
-app.post('/alexa', async (req, res) => {
   try {
-    // Captura a pergunta enviada pela Skill da Alexa
-    const userQuery = req.body.request.intent.slots.pergunta.value || "Olá, em que posso ajudar?";
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-    // Envia para o Gemini
+    // Captura a pergunta da Alexa
+    const userQuery = req.body.request.intent.slots.pergunta.value || "Olá";
+
     const result = await model.generateContent(userQuery);
     const response = await result.response;
     const answer = response.text();
 
-    // Resposta formatada para o padrão da Alexa
-    return res.json({
+    // Formato exato que a Alexa exige
+    res.status(200).json({
       version: "1.0",
       response: {
         outputSpeech: {
@@ -30,15 +29,15 @@ app.post('/alexa', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error("Erro no Gemini:", error);
-    return res.json({
+    console.error("Erro:", error);
+    res.status(200).json({
       version: "1.0",
       response: {
-        outputSpeech: { type: "PlainText", text: "Houve um erro ao processar sua pergunta." }
+        outputSpeech: {
+          type: "PlainText",
+          text: "Desculpe, tive um problema ao falar com o Gemini."
+        }
       }
     });
   }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
+};
